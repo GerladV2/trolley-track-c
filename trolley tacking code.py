@@ -5,7 +5,7 @@ import time
 firebaseConfig = {
     "apiKey":  "AIzaSyAvUrig_e2AivOwAGa3Yfgi3ueW3h9Xa10",
     "authDomain": "fir-realtimedata-9fab9.firebaseapp.com",
-    "databaseURL": "https://fir-realtimedata-9fab9-default-rtdb.firebaseio.com",
+    "databaseURL": "FIREBASE_URL",
     "projectId": "fir-realtimedata-9fab9",
     "storageBucket": "fir-realtimedata-9fab9.firebasestorage.app",
     "messagingSenderId": "856493742927",

@@ -88,92 +88,150 @@
     </div>
 
     <script>
-        let map;
-        let trolleyMarker;
-        let trolleyLocation = { lat: 30.34433333333, lng: -110.19425 };
+    let map;
+    let trolleyMarker;
+    let trolleyLocation = { lat: 30.34433333333, lng: -110.19425 };
 
-        const stops = [
-            { lat: 33.4293200, lng: -111.9327200, title: "Marina Heights" },
-            { lat: 33.4301000, lng: -111.9381700, title: "Hayden Ferry" },
-            { lat: 33.4295000, lng: -111.9419600, title: "Tempe Beach Park" },
-            { lat: 33.4279434045438, lng: -111.9399251694536, title: "3rd St/Mill" }, // 🆕 NEW
-            { lat: 33.4274800, lng: -111.9430800, title: "3rd St/Ash Ave" },
-            { lat: 33.4251200, lng: -111.9434700, title: "5th St/Ash Ave" },
-            { lat: 33.42485476512453, lng: -111.9398733826, title: "6th St/Mill" }, // 🆕 NEW
-            { lat: 33.4223700, lng: -111.9425400, title: "University Dr/Ash Ave" },
-            { lat: 33.4209400, lng: -111.9399600, title: "Ninth St/Mill" },
-            { lat: 33.4181001, lng: -111.9399347, title: "Eleventh St/Mill" },
-            { lat: 33.4146800, lng: -111.9352600, title: "College Ave/Apache Blvd" },
-            { lat: 33.4147500, lng: -111.9293900, title: "Paseo Del Saber/Apache Blvd" },
-            { lat: 33.4147800, lng: -111.9252400, title: "Rural Rd/Apache Blvd" },
-            { lat: 33.4146300, lng: -111.9169900, title: "Dorsey Ln/Apache Blvd" }
-        ];
+    const stops = [
+        { lat: 33.4293200, lng: -111.9327200, title: "Marina Heights" },
+        { lat: 33.4301000, lng: -111.9381700, title: "Hayden Ferry" },
+        { lat: 33.4295000, lng: -111.9419600, title: "Tempe Beach Park" },
+        { lat: 33.4279434045438, lng: -111.9399251694536, title: "3rd St/Mill" },
+        { lat: 33.4274800, lng: -111.9430800, title: "3rd St/Ash Ave" },
+        { lat: 33.4251200, lng: -111.9434700, title: "5th St/Ash Ave" },
+        { lat: 33.42485476512453, lng: -111.9398733826, title: "6th St/Mill" },
+        { lat: 33.4223700, lng: -111.9425400, title: "University Dr/Ash Ave" },
+        { lat: 33.4209400, lng: -111.9399600, title: "Ninth St/Mill" },
+        { lat: 33.4181001, lng: -111.9399347, title: "Eleventh St/Mill" },
+        { lat: 33.4146800, lng: -111.9352600, title: "College Ave/Apache Blvd" },
+        { lat: 33.4147500, lng: -111.9293900, title: "Paseo Del Saber/Apache Blvd" },
+        { lat: 33.4147800, lng: -111.9252400, title: "Rural Rd/Apache Blvd" },
+        { lat: 33.4146300, lng: -111.9169900, title: "Dorsey Ln/Apache Blvd" }
+    ];
 
+    const SPEED_MPH = 9.3;
+    const ZONES = {
+        ARRIVING: 0.2,
+        NEARBY: 0.5,
+        APPROACHING: 1.0
+    };
 
-        window.initialize = function () {
-            map = new google.maps.Map(document.getElementById("map"), {
-                center: trolleyLocation,
-                zoom: 14
-            });
+    window.initialize = function () {
+        map = new google.maps.Map(document.getElementById("map"), {
+            center: trolleyLocation,
+            zoom: 14
+        });
 
-            stops.forEach(stop => {
-                new google.maps.Marker({
-                    position: { lat: stop.lat, lng: stop.lng },
-                    map,
-                    title: stop.title
-                });
-            });
-
-            trolleyMarker = new google.maps.Marker({
-                position: trolleyLocation,
+        stops.forEach(stop => {
+            new google.maps.Marker({
+                position: { lat: stop.lat, lng: stop.lng },
                 map,
-                title: "Trolley",
-                icon: { url: "http://maps.google.com/mapfiles/ms/icons/red-dot.png" }
+                title: stop.title
             });
+        });
 
-            const stopButtons = stops.map(stop =>
-                `<button onclick="zoomToStop(${stop.lat}, ${stop.lng})">${stop.title}</button>`
-            ).join("");
-            document.getElementById("stop-buttons").innerHTML = stopButtons;
+        trolleyMarker = new google.maps.Marker({
+            position: trolleyLocation,
+            map,
+            title: "Trolley",
+            icon: { url: "http://maps.google.com/mapfiles/ms/icons/red-dot.png" }
+        });
 
-            updateTrolleyLocation();
-            setInterval(updateTrolleyLocation, 5000);
-        };
+        const stopButtons = stops.map(stop =>
+            `<button onclick="zoomToStop(${stop.lat}, ${stop.lng})">${stop.title}</button>`
+        ).join("");
+        document.getElementById("stop-buttons").innerHTML = stopButtons;
 
-        function zoomToStop(lat, lng) {
-            map.setCenter({ lat, lng });
-            map.setZoom(16);
+        updateTrolleyLocation();
+        setInterval(updateTrolleyLocation, 5000);
+    };
+
+    function zoomToStop(lat, lng) {
+        map.setCenter({ lat, lng });
+        map.setZoom(16);
+    }
+
+    function getDistanceInMiles(lat1, lng1, lat2, lng2) {
+        const R = 3958.8; // Earth radius in miles
+        const toRad = angle => angle * (Math.PI / 180);
+
+        const dLat = toRad(lat2 - lat1);
+        const dLng = toRad(lng2 - lng1);
+        const a = Math.sin(dLat / 2) ** 2 +
+                  Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+                  Math.sin(dLng / 2) ** 2;
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+        return R * c;
+    }
+
+    function updateTrolleyLocation() {
+        fetch("https://fir-realtimedata-9fab9-default-rtdb.firebaseio.com/.json")
+            .then(response => response.json())
+            .then(data => {
+                if (data && data.LAT && data.LNG) {
+                    trolleyLocation = {
+                        lat: parseFloat(data.LAT),
+                        lng: parseFloat(data.LNG)
+                    };
+                    trolleyMarker.setPosition(trolleyLocation);
+
+                    updateArrivalEstimate();
+                }
+            })
+            .catch(error => console.error("Error fetching GPS data:", error));
+    }
+
+    function updateArrivalEstimate() {
+        let closestStop = null;
+        let closestDistance = Infinity;
+
+        stops.forEach(stop => {
+            const dist = getDistanceInMiles(
+                trolleyLocation.lat, trolleyLocation.lng,
+                stop.lat, stop.lng
+            );
+
+            if (dist <= ZONES.APPROACHING && dist < closestDistance) {
+                closestStop = { ...stop, distance: dist };
+                closestDistance = dist;
+            }
+        });
+
+        const arrivalEl = document.getElementById("arrival-time");
+
+        if (closestStop) {
+            const etaMin = (closestStop.distance / SPEED_MPH) * 60;
+            let zoneLabel = "";
+
+            if (closestStop.distance <= ZONES.ARRIVING) {
+                zoneLabel = "Arriving";
+            } else if (closestStop.distance <= ZONES.NEARBY) {
+                zoneLabel = "Nearby";
+            } else {
+                zoneLabel = "Approaching";
+            }
+
+            arrivalEl.textContent = `ETA to ${closestStop.title}: ~${etaMin.toFixed(1)} min (${zoneLabel})`;
+        } else {
+            arrivalEl.textContent = "Estimated Arrival: Out of range";
         }
+    }
 
-        function updateTrolleyLocation() {
-            fetch("https://fir-realtimedata-9fab9-default-rtdb.firebaseio.com/.json")
-                .then(response => response.json())
-                .then(data => {
-                    if (data && data.LAT && data.LNG) {
-                        trolleyLocation = {
-                            lat: parseFloat(data.LAT),
-                            lng: parseFloat(data.LNG)
-                        };
-                        trolleyMarker.setPosition(trolleyLocation);
-                    }
-                })
-                .catch(error => console.error("Error fetching GPS data:", error));
-        }
+    function resetToBaseLocation() {
+        map.setCenter(trolleyLocation);
+        map.setZoom(14);
+    }
 
-        function resetToBaseLocation() {
-            map.setCenter(trolleyLocation);
-            map.setZoom(14);
-        }
+    function loadGoogleMapsScript() {
+        const script = document.createElement("script");
+        script.src = "https://maps.googleapis.com/maps/api/js?key=AIzaSyBI7-8jOYTYLUKfkbTuFHbL-YLBvlr-po8&callback=initialize";
+        script.async = true;
+        script.defer = true;
+        document.body.appendChild(script);
+    }
 
-        function loadGoogleMapsScript() {
-            const script = document.createElement("script");
-            script.src = "https://maps.googleapis.com/maps/api/js?key=AIzaSyBI7-8jOYTYLUKfkbTuFHbL-YLBvlr-po8&callback=initialize";
-            script.async = true;
-            script.defer = true;
-            document.body.appendChild(script);
-        }
-
-        document.addEventListener("DOMContentLoaded", loadGoogleMapsScript);
-    </script>
+    document.addEventListener("DOMContentLoaded", loadGoogleMapsScript);
+</script>
 </body>
 </html>

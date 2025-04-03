@@ -90,24 +90,9 @@
     <script>
     let map;
     let trolleyMarker;
-    let trolleyLocation = { lat: 33.414779, lng: -111.926146 };
-
-    const stops = [
-        { lat: 33.4293200, lng: -111.9327200, title: "Marina Heights" },
-        { lat: 33.4301000, lng: -111.9381700, title: "Hayden Ferry" },
-        { lat: 33.4295000, lng: -111.9419600, title: "Tempe Beach Park" },
-        { lat: 33.4279434045438, lng: -111.9399251694536, title: "3rd St/Mill" },
-        { lat: 33.4274800, lng: -111.9430800, title: "3rd St/Ash Ave" },
-        { lat: 33.4251200, lng: -111.9434700, title: "5th St/Ash Ave" },
-        { lat: 33.42485476512453, lng: -111.9398733826, title: "6th St/Mill" },
-        { lat: 33.4223700, lng: -111.9425400, title: "University Dr/Ash Ave" },
-        { lat: 33.4209400, lng: -111.9399600, title: "Ninth St/Mill" },
-        { lat: 33.4181001, lng: -111.9399347, title: "Eleventh St/Mill" },
-        { lat: 33.4146800, lng: -111.9352600, title: "College Ave/Apache Blvd" },
-        { lat: 33.4147500, lng: -111.9293900, title: "Paseo Del Saber/Apache Blvd" },
-        { lat: 33.4147800, lng: -111.9252400, title: "Rural Rd/Apache Blvd" },
-        { lat: 33.4146300, lng: -111.9169900, title: "Dorsey Ln/Apache Blvd" }
-    ];
+    let trolleyLocation = { lat: 30.34433333333, lng: -110.19425 };
+    let lastTrolleyLocation = null;
+    let selectedStopName = null;
 
     const SPEED_MPH = 9.3;
     const ZONES = {
@@ -116,19 +101,65 @@
         APPROACHING: 1.0
     };
 
+    const allStops = {
+        "Dorsey Ln/Apache Blvd": { lat: 33.4146300, lng: -111.9169900 },
+        "Rural Rd/Apache Blvd": { lat: 33.4147800, lng: -111.9252400 },
+        "Paseo Del Saber/Apache Blvd": { lat: 33.4147500, lng: -111.9293900 },
+        "College Ave/Apache Blvd": { lat: 33.4146800, lng: -111.9352600 },
+        "Eleventh St/Mill": { lat: 33.4181001, lng: -111.9399347 },
+        "Ninth St/Mill": { lat: 33.4209400, lng: -111.9399600 },
+        "Sixth St/Mill": { lat: 33.42485476512453, lng: -111.9398733826 },
+        "Third St/Mill": { lat: 33.4279434045438, lng: -111.9399251694536 },
+        "Hayden Ferry": { lat: 33.4301000, lng: -111.9381700 },
+        "Marina Heights": { lat: 33.4293200, lng: -111.9327200 },
+        "Tempe Beach Park": { lat: 33.4295000, lng: -111.9419600 },
+        "3rd St/Ash Ave": { lat: 33.4274800, lng: -111.9430800 },
+        "5th St/Ash Ave": { lat: 33.4251200, lng: -111.9434700 },
+        "University Dr/Ash Ave": { lat: 33.4223700, lng: -111.9425400 }
+    };
+
+    const northboundRoute = [
+        "Dorsey Ln/Apache Blvd",
+        "Rural Rd/Apache Blvd",
+        "Paseo Del Saber/Apache Blvd",
+        "College Ave/Apache Blvd",
+        "Eleventh St/Mill",
+        "Ninth St/Mill",
+        "Sixth St/Mill",
+        "Third St/Mill",
+        "Hayden Ferry",
+        "Marina Heights"
+    ];
+
+    const southboundRoute = [
+        "Marina Heights",
+        "Hayden Ferry",
+        "Tempe Beach Park",
+        "3rd St/Ash Ave",
+        "5th St/Ash Ave",
+        "University Dr/Ash Ave",
+        "Ninth St/Mill",
+        "Eleventh St/Mill",
+        "College Ave/Apache Blvd",
+        "Paseo Del Saber/Apache Blvd",
+        "Rural Rd/Apache Blvd",
+        "Dorsey Ln/Apache Blvd"
+    ];
+
     window.initialize = function () {
         map = new google.maps.Map(document.getElementById("map"), {
             center: trolleyLocation,
             zoom: 14
         });
 
-        stops.forEach(stop => {
+        for (const stopName in allStops) {
+            const stop = allStops[stopName];
             new google.maps.Marker({
-                position: { lat: stop.lat, lng: stop.lng },
+                position: stop,
                 map,
-                title: stop.title
+                title: stopName
             });
-        });
+        }
 
         trolleyMarker = new google.maps.Marker({
             position: trolleyLocation,
@@ -137,14 +168,18 @@
             icon: { url: "http://maps.google.com/mapfiles/ms/icons/red-dot.png" }
         });
 
-        const stopButtons = stops.map(stop =>
-            `<button onclick="zoomToStop(${stop.lat}, ${stop.lng})">${stop.title}</button>`
+        document.getElementById("stop-buttons").innerHTML = Object.entries(allStops).map(([name, pos]) =>
+            `<button onclick="selectStop('${name}', ${pos.lat}, ${pos.lng})">${name}</button>`
         ).join("");
-        document.getElementById("stop-buttons").innerHTML = stopButtons;
 
         updateTrolleyLocation();
         setInterval(updateTrolleyLocation, 5000);
     };
+
+    function selectStop(name, lat, lng) {
+        selectedStopName = name;
+        zoomToStop(lat, lng);
+    }
 
     function zoomToStop(lat, lng) {
         map.setCenter({ lat, lng });
@@ -152,16 +187,13 @@
     }
 
     function getDistanceInMiles(lat1, lng1, lat2, lng2) {
-        const R = 3958.8; // Earth radius in miles
-        const toRad = angle => angle * (Math.PI / 180);
-
+        const R = 3958.8;
+        const toRad = deg => deg * (Math.PI / 180);
         const dLat = toRad(lat2 - lat1);
         const dLng = toRad(lng2 - lng1);
         const a = Math.sin(dLat / 2) ** 2 +
-                  Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-                  Math.sin(dLng / 2) ** 2;
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
         return R * c;
     }
 
@@ -170,51 +202,72 @@
             .then(response => response.json())
             .then(data => {
                 if (data && data.LAT && data.LNG) {
+                    lastTrolleyLocation = { ...trolleyLocation };
                     trolleyLocation = {
                         lat: parseFloat(data.LAT),
                         lng: parseFloat(data.LNG)
                     };
                     trolleyMarker.setPosition(trolleyLocation);
-
                     updateArrivalEstimate();
                 }
             })
             .catch(error => console.error("Error fetching GPS data:", error));
     }
 
-    function updateArrivalEstimate() {
-        let closestStop = null;
-        let closestDistance = Infinity;
+    function getDirection() {
+        if (!lastTrolleyLocation) return "Unknown";
+        const deltaLng = trolleyLocation.lng - lastTrolleyLocation.lng;
+        return deltaLng < 0 ? "Northbound" : "Southbound";
+    }
 
-        stops.forEach(stop => {
+    function updateArrivalEstimate() {
+        const etaEl = document.getElementById("arrival-time");
+
+        if (!selectedStopName) {
+            etaEl.innerHTML = `Select a stop to calculate ETA.<br><small>Route: Unknown</small>`;
+            return;
+        }
+
+        const direction = getDirection();
+        const route = direction === "Northbound" ? northboundRoute : southboundRoute;
+        const stopIndex = route.indexOf(selectedStopName);
+
+        if (stopIndex === -1) {
+            etaEl.innerHTML = `Selected stop is not on the ${direction} route.<br><small>Route: ${direction}</small>`;
+            return;
+        }
+
+        const trolleyProgressIndex = route.findIndex(stop => {
+            const stopPos = allStops[stop];
             const dist = getDistanceInMiles(
                 trolleyLocation.lat, trolleyLocation.lng,
-                stop.lat, stop.lng
+                stopPos.lat, stopPos.lng
             );
-
-            if (dist <= ZONES.APPROACHING && dist < closestDistance) {
-                closestStop = { ...stop, distance: dist };
-                closestDistance = dist;
-            }
+            return dist <= ZONES.APPROACHING;
         });
 
-        const arrivalEl = document.getElementById("arrival-time");
+        const stopPos = allStops[selectedStopName];
+        const distance = getDistanceInMiles(
+            trolleyLocation.lat, trolleyLocation.lng,
+            stopPos.lat, stopPos.lng
+        );
 
-        if (closestStop) {
-            const etaMin = (closestStop.distance / SPEED_MPH) * 60;
-            let zoneLabel = "";
+        const etaMin = (distance / SPEED_MPH) * 60;
+        const zone =
+            distance <= ZONES.ARRIVING ? "Arriving" :
+            distance <= ZONES.NEARBY ? "Nearby" : "Approaching";
 
-            if (closestStop.distance <= ZONES.ARRIVING) {
-                zoneLabel = "Arriving";
-            } else if (closestStop.distance <= ZONES.NEARBY) {
-                zoneLabel = "Nearby";
-            } else {
-                zoneLabel = "Approaching";
-            }
-
-            arrivalEl.textContent = `ETA to ${closestStop.title}: ~${etaMin.toFixed(1)} min (${zoneLabel})`;
+        // Only show ETA if trolley hasn’t passed the selected stop yet
+        if (trolleyProgressIndex <= stopIndex || trolleyProgressIndex === -1) {
+            etaEl.innerHTML = `
+                ETA to <b>${selectedStopName}</b>: ~${etaMin.toFixed(1)} min (${zone})<br>
+                <small>Route: <b>${direction}</b></small>
+            `;
         } else {
-            arrivalEl.textContent = "Estimated Arrival: Out of range";
+            etaEl.innerHTML = `
+                Trolley has passed <b>${selectedStopName}</b> on this route.<br>
+                <small>Route: <b>${direction}</b></small>
+            `;
         }
     }
 
@@ -233,5 +286,6 @@
 
     document.addEventListener("DOMContentLoaded", loadGoogleMapsScript);
 </script>
+
 </body>
 </html>

@@ -86,14 +86,12 @@
             <div id="arrival-time">Estimated Arrival: Work in Progress</div>
         </div>
     </div>
-    
-    <script src="config.js"></script>
 
     <script>
         let map;
         let trolleyMarker;
         let trolleyLocation = { lat: 30.34433333333, lng: -110.19425 };
-        
+
         const stops = [
             { lat: 33.4293200, lng: -111.9327200, title: "Marina Heights" },
             { lat: 33.4301000, lng: -111.9381700, title: "Hayden Ferry" },
@@ -108,13 +106,13 @@
             { lat: 33.4147800, lng: -111.9252400, title: "Rural Rd/Apache Blvd" },
             { lat: 33.4146300, lng: -111.9169900, title: "Dorsey Ln/Apache Blvd" }
         ];
-        
-        function initialize() {
+
+        window.initialize = function () {
             map = new google.maps.Map(document.getElementById("map"), {
                 center: trolleyLocation,
                 zoom: 14
             });
-            
+
             stops.forEach(stop => {
                 new google.maps.Marker({
                     position: { lat: stop.lat, lng: stop.lng },
@@ -122,33 +120,37 @@
                     title: stop.title
                 });
             });
-            
+
             trolleyMarker = new google.maps.Marker({
                 position: trolleyLocation,
                 map,
                 title: "Trolley",
                 icon: { url: "http://maps.google.com/mapfiles/ms/icons/red-dot.png" }
             });
-            
-            document.getElementById("stop-buttons").innerHTML = stops.map(stop => 
+
+            const stopButtons = stops.map(stop =>
                 `<button onclick="zoomToStop(${stop.lat}, ${stop.lng})">${stop.title}</button>`
             ).join("");
-            
+            document.getElementById("stop-buttons").innerHTML = stopButtons;
+
             updateTrolleyLocation();
             setInterval(updateTrolleyLocation, 5000);
-        }
+        };
 
         function zoomToStop(lat, lng) {
             map.setCenter({ lat, lng });
             map.setZoom(16);
         }
-        
+
         function updateTrolleyLocation() {
-            fetch(CONFIG.FIREBASE_URL)
+            fetch("https://fir-realtimedata-9fab9-default-rtdb.firebaseio.com/.json")
                 .then(response => response.json())
                 .then(data => {
                     if (data && data.LAT && data.LNG) {
-                        trolleyLocation = { lat: parseFloat(data.LAT), lng: parseFloat(data.LNG) };
+                        trolleyLocation = {
+                            lat: parseFloat(data.LAT),
+                            lng: parseFloat(data.LNG)
+                        };
                         trolleyMarker.setPosition(trolleyLocation);
                     }
                 })
@@ -162,7 +164,7 @@
 
         function loadGoogleMapsScript() {
             const script = document.createElement("script");
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${CONFIG.GOOGLE_MAPS_API_KEY}&callback=initialize`;
+            script.src = "https://maps.googleapis.com/maps/api/js?key=AIzaSyBI7-8jOYTYLUKfkbTuFHbL-YLBvlr-po8&callback=initialize";
             script.async = true;
             script.defer = true;
             document.body.appendChild(script);

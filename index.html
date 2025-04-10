@@ -96,7 +96,7 @@
     let map;
     let northboundPath, southboundPath;
     let trolleyMarker;
-    let trolleyLocation = { lat: 33.4146300, lng: -111.9169900 };
+    let trolleyLocation = { lat: 30.34433333333, lng: -110.19425 };
     let lastTrolleyLocation = null;
     let selectedStopName = null;
 
@@ -278,42 +278,68 @@
 
 
     function updateArrivalEstimate() {
-      const etaEl = document.getElementById("arrival-time");
+        const etaEl = document.getElementById("arrival-time");
 
-      if (!selectedStopName) {
-        etaEl.innerHTML = `Select a stop to calculate ETA.<br><small>Route: Unknown</small>`;
-        drawRouteOverlay(); return;
-      }
+        if (!selectedStopName) {
+            etaEl.innerHTML = `Select a stop to calculate ETA.<br><small>Route: Unknown</small>`;
+            drawRouteOverlay();
+            return;
+        }
 
-      const userDir = getUserSelectedDirection();
-      const autoDir = getAutoDirection();
-      const route = userDir === "Northbound" ? northboundRoute : southboundRoute;
-      const stopIndex = route.indexOf(selectedStopName);
+        const userDir = getUserSelectedDirection();
+        const autoDir = getAutoDirection();
+        const route = userDir === "Northbound" ? northboundRoute : southboundRoute;
+        const stopIndex = route.indexOf(selectedStopName);
 
-      if (stopIndex === -1) {
-        etaEl.innerHTML = `Stop not on selected route.<br><small>Route: ${userDir}</small>`;
-        drawRouteOverlay(); return;
-      }
+        if (stopIndex === -1) {
+            etaEl.innerHTML = `Stop not on selected route.<br><small>Route: ${userDir}</small>`;
+            drawRouteOverlay();
+            return;
+        }
 
-      const trolleyProgressIndex = route.findIndex(stop => {
-        const stopPos = allStops[stop];
-        return getDistanceInMiles(trolleyLocation.lat, trolleyLocation.lng, stopPos.lat, stopPos.lng) <= ZONES.APPROACHING;
-      });
+        const trolleyProgressIndex = route.findIndex(stop => {
+            const stopPos = allStops[stop];
+            return getDistanceInMiles(trolleyLocation.lat, trolleyLocation.lng, stopPos.lat, stopPos.lng) <= ZONES.APPROACHING;
+        });
 
-      const stopPos = allStops[selectedStopName];
-      const distance = getDistanceInMiles(trolleyLocation.lat, trolleyLocation.lng, stopPos.lat, stopPos.lng);
-      const etaMin = (distance / SPEED_MPH) * 60;
-      const zone = distance <= ZONES.ARRIVING ? "Arriving" : distance <= ZONES.NEARBY ? "Nearby" : "Approaching";
+        const stopPos = allStops[selectedStopName];
 
-      const warning = (autoDir !== userDir && autoDir !== "Unknown")
-        ? `<br><small style="color:red">⚠️ Trolley is moving ${autoDir}, but you're tracking ${userDir}</small>` : "";
+        const directionsService = new google.maps.DirectionsService();
 
-      etaEl.innerHTML = (trolleyProgressIndex <= stopIndex || trolleyProgressIndex === -1)
-        ? `ETA to <b>${selectedStopName}</b>: ~${etaMin.toFixed(1)} min (${zone})<br><small>Tracking: <b>${userDir}</b></small>${warning}`
-        : `Trolley has passed <b>${selectedStopName}</b> on this route.<br><small>Tracking: <b>${userDir}</b></small>${warning}`;
+        directionsService.route(
+            {
+            origin: trolleyLocation,
+            destination: stopPos,
+            travelMode: google.maps.TravelMode.TRANSIT,
+            },
+            (result, status) => {
+            if (status === "OK") {
+                const etaSeconds = result.routes[0].legs[0].duration.value;
+                const etaText = result.routes[0].legs[0].duration.text;
 
-      drawRouteOverlay(); // ✅ Also added here
-    }
+                const warning =
+                autoDir !== userDir && autoDir !== "Unknown"
+                    ? `<br><small style="color:red">⚠️ Trolley is moving ${autoDir}, but you're tracking ${userDir}</small>`
+                    : "";
+
+                if (trolleyProgressIndex <= stopIndex || trolleyProgressIndex === -1) {
+                etaEl.innerHTML = `
+                    ETA to <b>${selectedStopName}</b>: <b>${etaText}</b><br>
+                    <small>Tracking: <b>${userDir}</b></small>${warning}`;
+                } else {
+                etaEl.innerHTML = `
+                    Trolley has passed <b>${selectedStopName}</b> on this route.<br>
+                    <small>Tracking: <b>${userDir}</b></small>${warning}`;
+                }
+            } else {
+                etaEl.innerHTML = `Could not calculate ETA (Google API status: ${status})`;
+            }
+
+            drawRouteOverlay();
+            }
+        );
+        }
+
 
     function resetToBaseLocation() {
       map.setCenter(trolleyLocation);

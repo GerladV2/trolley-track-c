@@ -179,27 +179,61 @@
     }
 
     function drawRouteOverlay() {
-      const selectedDir = getUserSelectedDirection();
-      const route = selectedDir === "Northbound" ? northboundRoute : southboundRoute;
-      const pathCoordinates = route.map(stopName => allStops[stopName]);
+        const selectedDir = getUserSelectedDirection();
 
-      if (northboundPath) northboundPath.setMap(null);
-      if (southboundPath) southboundPath.setMap(null);
+        const northboundPathCoords = [
+            { lat: 33.414630, lng: -111.916990 },
+            { lat: 33.414780, lng: -111.925240 },
+            { lat: 33.414750, lng: -111.929390 },
+            { lat: 33.414680, lng: -111.935260 },
+            { lat: 33.418100, lng: -111.939934 },
+            { lat: 33.420940, lng: -111.939960 },
+            { lat: 33.423200, lng: -111.939880 },
+            { lat: 33.425800, lng: -111.939870 },
+            { lat: 33.429200, lng: -111.938100 },
+            { lat: 33.429320, lng: -111.932720 }
+        ];
 
-      const polylineOptions = {
-        path: pathCoordinates,
-        geodesic: true,
-        strokeOpacity: 1.0,
-        strokeWeight: 4
-      };
+        const southboundPathCoords = [
+            { lat: 33.429320, lng: -111.932720 },
+            { lat: 33.429200, lng: -111.938100 },
+            { lat: 33.429500, lng: -111.941960 },
+            { lat: 33.427480, lng: -111.943080 },
+            { lat: 33.425120, lng: -111.943470 },
+            { lat: 33.422370, lng: -111.942540 },
+            { lat: 33.420940, lng: -111.939960 },
+            { lat: 33.418100, lng: -111.939934 },
+            { lat: 33.414680, lng: -111.935260 },
+            { lat: 33.414750, lng: -111.929390 },
+            { lat: 33.414780, lng: -111.925240 },
+            { lat: 33.414630, lng: -111.916990 }
+        ];
 
-      if (selectedDir === "Northbound") {
-        northboundPath = new google.maps.Polyline({ ...polylineOptions, strokeColor: "#00AAFF" });
-        northboundPath.setMap(map);
-      } else {
-        southboundPath = new google.maps.Polyline({ ...polylineOptions, strokeColor: "#FF5500" });
-        southboundPath.setMap(map);
-      }
+        // Clear any previously drawn lines
+        if (northboundPath) northboundPath.setMap(null);
+        if (southboundPath) southboundPath.setMap(null);
+
+        const polylineOptions = {
+            geodesic: true,
+            strokeOpacity: 1.0,
+            strokeWeight: 4
+        };
+
+        if (selectedDir === "Northbound") {
+            northboundPath = new google.maps.Polyline({
+                path: northboundPathCoords,
+                strokeColor: "#00AAFF",
+                ...polylineOptions
+            });
+            northboundPath.setMap(map);
+        } else {
+            southboundPath = new google.maps.Polyline({
+                path: southboundPathCoords,
+                strokeColor: "#FF5500",
+                ...polylineOptions
+            });
+            southboundPath.setMap(map);
+        }
     }
 
     function getDistanceInMiles(lat1, lng1, lat2, lng2) {

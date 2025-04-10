@@ -201,21 +201,55 @@
     }
 
     function drawRouteOverlay() {
-      const route = getUserSelectedDirection() === "Northbound" ? northboundRoute : southboundRoute;
-      const pathCoords = route.map(stop => allStops[stop]);
+        const selectedDir = getUserSelectedDirection();
 
-      if (pathOverlay) pathOverlay.setMap(null);
+        // Define custom southbound path
+        const southboundPathCoords = [
+            { lat: 33.4145, lng: -111.9289 },
+            { lat: 33.4144, lng: -111.9305 },
+            { lat: 33.4144, lng: -111.9330 },
+            { lat: 33.4145, lng: -111.9355 },
+            { lat: 33.4147, lng: -111.9370 },
+            { lat: 33.4149, lng: -111.9385 },
+            { lat: 33.4165, lng: -111.9385 },
+            { lat: 33.4180, lng: -111.9383 },
+            { lat: 33.4193, lng: -111.9380 },
+            { lat: 33.4210, lng: -111.9378 }
+        ];
 
-      pathOverlay = new google.maps.Polyline({
-        path: pathCoords,
-        geodesic: true,
-        strokeColor: getUserSelectedDirection() === "Northbound" ? "#00AAFF" : "#FF5500",
-        strokeOpacity: 1.0,
-        strokeWeight: 4
-      });
+        // (Add your northboundPathCoords here too once ready)
+        const northboundPathCoords = [
+            // Placeholder — use similar format to southbound
+            { lat: 33.4210, lng: -111.9378 },
+            { lat: 33.4193, lng: -111.9380 },
+            { lat: 33.4180, lng: -111.9383 },
+            { lat: 33.4165, lng: -111.9385 },
+            { lat: 33.4149, lng: -111.9385 },
+            { lat: 33.4147, lng: -111.9370 },
+            { lat: 33.4145, lng: -111.9355 },
+            { lat: 33.4144, lng: -111.9330 },
+            { lat: 33.4144, lng: -111.9305 },
+            { lat: 33.4145, lng: -111.9289 }
+        ];
 
-      pathOverlay.setMap(map);
+        const pathCoords = selectedDir === "Southbound"
+            ? southboundPathCoords
+            : northboundPathCoords;
+
+        if (pathOverlay) pathOverlay.setMap(null);
+
+        pathOverlay = new google.maps.Polyline({
+            path: pathCoords,
+            geodesic: true,
+            strokeColor: selectedDir === "Northbound" ? "#00AAFF" : "#FF5500",
+            strokeOpacity: 1.0,
+            strokeWeight: 4
+        });
+
+        pathOverlay.setMap(map);
     }
+
+
 
     function updateTrolleyLocation() {
       fetch("https://fir-realtimedata-9fab9-default-rtdb.firebaseio.com/gps.json")

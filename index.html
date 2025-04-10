@@ -94,9 +94,9 @@
 
   <script>
     let map;
-    let northboundPath, southboundPath;
+    let pathOverlay;
     let trolleyMarker;
-    let trolleyLocation = { lat: 30.34433333333, lng: -110.19425 };
+    let trolleyLocation = { lat: 33.414630, lng: -111.916990 }; // 🚨 Tempe starting point
     let lastTrolleyLocation = null;
     let selectedStopName = null;
 
@@ -136,17 +136,15 @@
       "Eleventh St/Mill", "College Ave/Apache Blvd", "Paseo Del Saber/Apache Blvd",
       "Rural Rd/Apache Blvd", "Dorsey Ln/Apache Blvd"
     ];
-
-    window.initialize = function () {
+    function initialize() {
       map = new google.maps.Map(document.getElementById("map"), {
         center: trolleyLocation,
         zoom: 14
       });
 
       for (const stopName in allStops) {
-        const stop = allStops[stopName];
         new google.maps.Marker({
-          position: stop,
+          position: allStops[stopName],
           map,
           title: stopName
         });
@@ -163,70 +161,10 @@
         `<button onclick="selectStop('${name}', ${pos.lat}, ${pos.lng})">${name}</button>`
       ).join("");
 
-      drawRouteOverlay(); // ✅ Inserted here
+      drawRouteOverlay();
       updateTrolleyLocation();
       setInterval(updateTrolleyLocation, 5000);
-    };
-
-    function selectStop(name, lat, lng) {
-      selectedStopName = name;
-      zoomToStop(lat, lng);
     }
-
-    function zoomToStop(lat, lng) {
-      map.setCenter({ lat, lng });
-      map.setZoom(16);
-    }
-
-    function drawRouteOverlay() {
-        const selectedDir = getUserSelectedDirection();
-
-        const route = selectedDir === "Northbound" ? northboundRoute : southboundRoute;
-
-        // If no stop selected or trolley location unknown, skip drawing
-        if (!selectedStopName || !trolleyLocation.lat || !trolleyLocation.lng) return;
-
-        const stopIndex = route.indexOf(selectedStopName);
-        if (stopIndex === -1) return;
-
-        const destination = allStops[selectedStopName];
-
-        // Clear old route lines if any
-        if (northboundPath) northboundPath.setMap(null);
-        if (southboundPath) southboundPath.setMap(null);
-
-        const directionsService = new google.maps.DirectionsService();
-
-        directionsService.route(
-            {
-            origin: trolleyLocation,
-            destination: destination,
-            travelMode: google.maps.TravelMode.TRANSIT,
-            },
-            (result, status) => {
-            if (status === "OK") {
-                const path = result.routes[0].overview_path;
-
-                const overlay = new google.maps.Polyline({
-                path,
-                geodesic: true,
-                strokeColor: selectedDir === "Northbound" ? "#00AAFF" : "#FF5500",
-                strokeOpacity: 1.0,
-                strokeWeight: 4
-                });
-
-                // Store reference to clear later
-                if (selectedDir === "Northbound") northboundPath = overlay;
-                else southboundPath = overlay;
-
-                overlay.setMap(map);
-            } else {
-                console.error("Could not draw overlay route:", status);
-            }
-            }
-        );
-        }
-
 
     function getDistanceInMiles(lat1, lng1, lat2, lng2) {
       const R = 3958.8;
@@ -238,104 +176,119 @@
       return R * c;
     }
 
-    function getAutoDirection() {
-      if (!lastTrolleyLocation) return "Unknown";
-      const deltaLng = trolleyLocation.lng - lastTrolleyLocation.lng;
-      return deltaLng < 0 ? "Northbound" : "Southbound";
+    function getETAtoStopFromPath(trolleyLoc, selectedStop, routeStops, stopCoords) {
+      let totalDistance = 0;
+      let startFound = false;
+
+      for (let i = 0; i < routeStops.length - 1; i++) {
+        const curr = stopCoords[routeStops[i]];
+        const next = stopCoords[routeStops[i + 1]];
+
+        if (!startFound) {
+          const distToMid = getDistanceInMiles(trolleyLoc.lat, trolleyLoc.lng, (curr.lat + next.lat)/2, (curr.lng + next.lng)/2);
+          if (distToMid < 0.25) {
+            startFound = true;
+            totalDistance += getDistanceInMiles(trolleyLoc.lat, trolleyLoc.lng, next.lat, next.lng);
+          }
+        } else {
+          totalDistance += getDistanceInMiles(curr.lat, curr.lng, next.lat, next.lng);
+        }
+
+        if (routeStops[i + 1] === selectedStop) break;
+      }
+
+      return totalDistance;
     }
 
-    function getUserSelectedDirection() {
-      const selectEl = document.getElementById("direction-select");
-      return selectEl ? selectEl.value : "Northbound";
+    function drawRouteOverlay() {
+      const route = getUserSelectedDirection() === "Northbound" ? northboundRoute : southboundRoute;
+      const pathCoords = route.map(stop => allStops[stop]);
+
+      if (pathOverlay) pathOverlay.setMap(null);
+
+      pathOverlay = new google.maps.Polyline({
+        path: pathCoords,
+        geodesic: true,
+        strokeColor: getUserSelectedDirection() === "Northbound" ? "#00AAFF" : "#FF5500",
+        strokeOpacity: 1.0,
+        strokeWeight: 4
+      });
+
+      pathOverlay.setMap(map);
     }
 
     function updateTrolleyLocation() {
-        fetch("https://fir-realtimedata-9fab9-default-rtdb.firebaseio.com/gps.json")
-        .then(response => response.json())
+      fetch("https://fir-realtimedata-9fab9-default-rtdb.firebaseio.com/gps.json")
+        .then(res => res.json())
         .then(data => {
-        if (data && data.latitude && data.longitude) {
+          if (data?.latitude && data?.longitude) {
             lastTrolleyLocation = { ...trolleyLocation };
-            trolleyLocation = {
-            lat: parseFloat(data.latitude),
-            lng: parseFloat(data.longitude)
-            };
+            trolleyLocation = { lat: parseFloat(data.latitude), lng: parseFloat(data.longitude) };
             trolleyMarker.setPosition(trolleyLocation);
             updateArrivalEstimate();
-        } else {
-            console.warn("GPS data missing latitude/longitude.");
-        }
-        })
-        .catch(error => console.error("Error fetching GPS data:", error));
+          }
+        });
     }
 
-
     function updateArrivalEstimate() {
-        const etaEl = document.getElementById("arrival-time");
+      const etaEl = document.getElementById("arrival-time");
 
-        if (!selectedStopName) {
-            etaEl.innerHTML = `Select a stop to calculate ETA.<br><small>Route: Unknown</small>`;
-            drawRouteOverlay();
-            return;
-        }
+      if (!selectedStopName) {
+        etaEl.innerHTML = `Select a stop to calculate ETA.<br><small>Route: Unknown</small>`;
+        drawRouteOverlay();
+        return;
+      }
 
-        const userDir = getUserSelectedDirection();
-        const autoDir = getAutoDirection();
-        const route = userDir === "Northbound" ? northboundRoute : southboundRoute;
-        const stopIndex = route.indexOf(selectedStopName);
+      const userDir = getUserSelectedDirection();
+      const autoDir = getAutoDirection();
+      const route = userDir === "Northbound" ? northboundRoute : southboundRoute;
+      const stopIndex = route.indexOf(selectedStopName);
 
-        if (stopIndex === -1) {
-            etaEl.innerHTML = `Stop not on selected route.<br><small>Route: ${userDir}</small>`;
-            drawRouteOverlay();
-            return;
-        }
+      if (stopIndex === -1) {
+        etaEl.innerHTML = `Stop not on selected route.<br><small>Route: ${userDir}</small>`;
+        drawRouteOverlay();
+        return;
+      }
 
-        const trolleyProgressIndex = route.findIndex(stop => {
-            const stopPos = allStops[stop];
-            return getDistanceInMiles(trolleyLocation.lat, trolleyLocation.lng, stopPos.lat, stopPos.lng) <= ZONES.APPROACHING;
-        });
+      const dist = getETAtoStopFromPath(trolleyLocation, selectedStopName, route, allStops);
+      const etaMin = (dist / SPEED_MPH) * 60;
+      const zone = dist <= ZONES.ARRIVING ? "Arriving" : dist <= ZONES.NEARBY ? "Nearby" : "Approaching";
 
-        const stopPos = allStops[selectedStopName];
+      const warning = autoDir !== userDir && autoDir !== "Unknown"
+        ? `<br><small style="color:red">⚠️ Trolley is moving ${autoDir}, but you're tracking ${userDir}</small>`
+        : "";
 
-        const directionsService = new google.maps.DirectionsService();
+      etaEl.innerHTML = `
+        ETA to <b>${selectedStopName}</b>: <b>${etaMin.toFixed(1)} min</b> (${zone})<br>
+        <small>Tracking: <b>${userDir}</b></small>${warning}
+      `;
 
-        directionsService.route(
-            {
-            origin: trolleyLocation,
-            destination: stopPos,
-            travelMode: google.maps.TravelMode.TRANSIT,
-            },
-            (result, status) => {
-            if (status === "OK") {
-                const etaSeconds = result.routes[0].legs[0].duration.value;
-                const etaText = result.routes[0].legs[0].duration.text;
+      drawRouteOverlay();
+    }
 
-                const warning =
-                autoDir !== userDir && autoDir !== "Unknown"
-                    ? `<br><small style="color:red">⚠️ Trolley is moving ${autoDir}, but you're tracking ${userDir}</small>`
-                    : "";
+    function selectStop(name, lat, lng) {
+      selectedStopName = name;
+      zoomToStop(lat, lng);
+    }
 
-                if (trolleyProgressIndex <= stopIndex || trolleyProgressIndex === -1) {
-                etaEl.innerHTML = `
-                    ETA to <b>${selectedStopName}</b>: <b>${etaText}</b><br>
-                    <small>Tracking: <b>${userDir}</b></small>${warning}`;
-                } else {
-                etaEl.innerHTML = `
-                    Trolley has passed <b>${selectedStopName}</b> on this route.<br>
-                    <small>Tracking: <b>${userDir}</b></small>${warning}`;
-                }
-            } else {
-                etaEl.innerHTML = `Could not calculate ETA (Google API status: ${status})`;
-            }
-
-            drawRouteOverlay();
-            }
-        );
-        }
-
+    function zoomToStop(lat, lng) {
+      map.setCenter({ lat, lng });
+      map.setZoom(16);
+    }
 
     function resetToBaseLocation() {
       map.setCenter(trolleyLocation);
       map.setZoom(14);
+    }
+
+    function getUserSelectedDirection() {
+      const el = document.getElementById("direction-select");
+      return el ? el.value : "Northbound";
+    }
+
+    function getAutoDirection() {
+      if (!lastTrolleyLocation) return "Unknown";
+      return trolleyLocation.lng - lastTrolleyLocation.lng < 0 ? "Northbound" : "Southbound";
     }
 
     function loadGoogleMapsScript() {

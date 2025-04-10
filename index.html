@@ -180,6 +180,45 @@
       return R * c;
     }
 
+    function getDistanceAlongPath(trolleyLoc, stopLoc, pathCoords) {
+        let minStartDist = Infinity;
+        let minEndDist = Infinity;
+        let startIdx = 0;
+        let endIdx = pathCoords.length - 1;
+
+        // Find the closest point on path to trolley
+        for (let i = 0; i < pathCoords.length; i++) {
+            const d = getDistanceInMiles(trolleyLoc.lat, trolleyLoc.lng, pathCoords[i].lat, pathCoords[i].lng);
+            if (d < minStartDist) {
+            minStartDist = d;
+            startIdx = i;
+            }
+        }
+
+        // Find the closest point on path to stop
+        for (let i = 0; i < pathCoords.length; i++) {
+            const d = getDistanceInMiles(stopLoc.lat, stopLoc.lng, pathCoords[i].lat, pathCoords[i].lng);
+            if (d < minEndDist) {
+            minEndDist = d;
+            endIdx = i;
+            }
+        }
+
+        // Make sure we're going forward along the path
+        if (endIdx < startIdx) return Infinity;
+
+        let total = 0;
+        for (let i = startIdx; i < endIdx; i++) {
+            total += getDistanceInMiles(
+            pathCoords[i].lat, pathCoords[i].lng,
+            pathCoords[i + 1].lat, pathCoords[i + 1].lng
+            );
+        }
+
+        return total; // in miles
+    }
+
+
     function getETAtoStopFromPath(trolleyLoc, selectedStop, routeStops, stopCoords) {
       let totalDistance = 0;
       let startFound = false;
@@ -638,7 +677,9 @@ function handleDirectionChange() {
         return;
       }
 
-      const dist = getETAtoStopFromPath(trolleyLocation, selectedStopName, route, allStops);
+      const pathCoords = userDir === "Northbound" ? northboundPathCoords : southboundPathCoords;
+      const stopCoord = allStops[selectedStopName];
+      const dist = getDistanceAlongPath(trolleyLocation, stopCoord, pathCoords);
       const etaMin = (dist / SPEED_MPH) * 60;
       const zone = dist <= ZONES.ARRIVING ? "Arriving" : dist <= ZONES.NEARBY ? "Nearby" : "Approaching";
 

@@ -107,22 +107,23 @@
       APPROACHING: 1.0
     };
 
-    const allStops = {
-      "Dorsey Ln/Apache Blvd": { lat: 33.4146300, lng: -111.9169900 },
-      "Rural Rd/Apache Blvd": { lat: 33.4147800, lng: -111.9252400 },
-      "Paseo Del Saber/Apache Blvd": { lat: 33.4147500, lng: -111.9293900 },
-      "College Ave/Apache Blvd": { lat: 33.4146800, lng: -111.9352600 },
-      "Eleventh St/Mill": { lat: 33.4181001, lng: -111.9399347 },
-      "Ninth St/Mill": { lat: 33.4209400, lng: -111.9399600 },
-      "Sixth St/Mill": { lat: 33.42485476512453, lng: -111.9398733826 },
-      "Third St/Mill": { lat: 33.4279434045438, lng: -111.9399251694536 },
-      "Hayden Ferry": { lat: 33.4301000, lng: -111.9381700 },
-      "Marina Heights": { lat: 33.4293200, lng: -111.9327200 },
-      "Tempe Beach Park": { lat: 33.4295000, lng: -111.9419600 },
-      "3rd St/Ash Ave": { lat: 33.4274800, lng: -111.9430800 },
-      "5th St/Ash Ave": { lat: 33.4251200, lng: -111.9434700 },
-      "University Dr/Ash Ave": { lat: 33.4223700, lng: -111.9425400 }
-    };
+    const stopsInOrder = [
+        { id: 1, name: "Dorsey Ln/Apache Blvd", lat: 33.4146300, lng: -111.9169900 },
+        { id: 2, name: "Rural Rd/Apache Blvd", lat: 33.4147800, lng: -111.9252400 },
+        { id: 3, name: "Paseo Del Saber/Apache Blvd", lat: 33.4147500, lng: -111.9293900 },
+        { id: 4, name: "College Ave/Apache Blvd", lat: 33.4146800, lng: -111.9352600 },
+        { id: 5, name: "Eleventh St/Mill", lat: 33.4181001, lng: -111.9399347 },
+        { id: 6, name: "Ninth St/Mill", lat: 33.4209400, lng: -111.9399600 },
+        { id: 7, name: "Sixth St/Mill", lat: 33.4248548, lng: -111.9398734 },
+        { id: 8, name: "Third St/Mill", lat: 33.4279434, lng: -111.9399252 },
+        { id: 9, name: "Hayden Ferry", lat: 33.4301000, lng: -111.9381700 },
+        { id: 10, name: "Marina Heights", lat: 33.4293200, lng: -111.9327200 },
+        { id: 11, name: "Tempe Beach Park", lat: 33.4295000, lng: -111.9419600 },
+        { id: 12, name: "3rd St/Ash Ave", lat: 33.4274800, lng: -111.9430800 },
+        { id: 13, name: "5th St/Ash Ave", lat: 33.4251200, lng: -111.9434700 },
+        { id: 14, name: "University Dr/Ash Ave", lat: 33.4223700, lng: -111.9425400 }
+    ];
+
 
     const northboundRoute = [
       "Dorsey Ln/Apache Blvd", "Rural Rd/Apache Blvd", "Paseo Del Saber/Apache Blvd",

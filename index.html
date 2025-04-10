@@ -224,21 +224,24 @@
     }
 
     function updateTrolleyLocation() {
-      fetch("https://fir-realtimedata-9fab9-default-rtdb.firebaseio.com/.json")
+        fetch("https://fir-realtimedata-9fab9-default-rtdb.firebaseio.com/gps.json")
         .then(response => response.json())
         .then(data => {
-          if (data && data.LAT && data.LNG) {
+        if (data && data.latitude && data.longitude) {
             lastTrolleyLocation = { ...trolleyLocation };
             trolleyLocation = {
-              lat: parseFloat(data.LAT),
-              lng: parseFloat(data.LNG)
+            lat: parseFloat(data.latitude),
+            lng: parseFloat(data.longitude)
             };
             trolleyMarker.setPosition(trolleyLocation);
             updateArrivalEstimate();
-          }
+        } else {
+            console.warn("GPS data missing latitude/longitude.");
+        }
         })
         .catch(error => console.error("Error fetching GPS data:", error));
     }
+
 
     function updateArrivalEstimate() {
       const etaEl = document.getElementById("arrival-time");

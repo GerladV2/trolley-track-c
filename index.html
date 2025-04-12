@@ -5,29 +5,31 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Trolley Tracker</title>
   <style>
+    /* Valley Metro inspired color scheme */
     body {
       display: flex;
       flex-direction: column;
       height: 100vh;
       margin: 0;
       font-family: Arial, sans-serif;
+      background-color: #f4f4f4; /* light gray background */
     }
     #header {
       width: 100%;
-      background: #007BFF;
+      background: #00539C;  /* dark blue */
       color: white;
       text-align: center;
-      padding: 10px;
-      font-size: 20px;
+      padding: 15px;
+      font-size: 24px;
       font-weight: bold;
     }
     #sub-header {
       width: 100%;
-      background: #0056b3;
-      color: white;
+      background: #FFD662; /* bright yellow */
+      color: #333;       /* dark text */
       text-align: center;
-      padding: 5px;
-      font-size: 16px;
+      padding: 8px;
+      font-size: 18px;
     }
     #content {
       display: flex;
@@ -35,25 +37,27 @@
     }
     #sidebar {
       width: 250px;
-      background: #f8f8f8;
-      padding: 10px;
+      background: #ffffff; /* white background for sidebar */
+      padding: 15px;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
       gap: 10px;
+      border-right: 1px solid #ccc;
     }
     button {
       padding: 10px;
       width: 100%;
       border: none;
-      background: #007BFF;
+      background: #00539C; /* dark blue */
       color: white;
       cursor: pointer;
       border-radius: 5px;
       transition: background 0.3s;
+      font-size: 16px;
     }
     button:hover {
-      background: #0056b3;
+      background: #003f7f;  /* darker blue on hover */
     }
     #map-container {
       flex: 1;
@@ -68,7 +72,9 @@
       text-align: center;
       font-size: 18px;
       padding: 10px;
-      background: #ddd;
+      background: #ffffff; /* white for clarity */
+      border-top: 1px solid #ccc;
+      color: #333;
     }
   </style>
 </head>

@@ -155,6 +155,7 @@
         zoom: 14
       });
 
+      // Place markers for all stops
       for (const stopName in allStops) {
         new google.maps.Marker({
           position: allStops[stopName],
@@ -167,17 +168,15 @@
         position: trolleyLocation,
         map,
         title: "Trolley",
-        icon: {
-          url: "Trolley_Icon.png",
-          scaledSize: new google.maps.Size(50, 50) // Adjust width and height as desired
-        }
+        icon: { url: "Trolley_Icon.png", scaledSize: new google.maps.Size(40,40) }
       });
 
-      renderStopButtons();
+      renderStopButtons();  // <-- This renders the stop buttons with the correct color
       drawRouteOverlay();
       updateTrolleyLocation();
       setInterval(updateTrolleyLocation, 500);
     }
+
 
     function getDistanceInMiles(lat1, lng1, lat2, lng2) {
       const R = 3958.8;
@@ -468,21 +467,32 @@
         pathOverlay.setMap(map);
     }
 
-function renderStopButtons() {
-  const route = getUserSelectedDirection() === "Northbound" ? northboundRoute : southboundRoute;
-  const buttonsHtml = route.map(stopName => {
-    const stop = allStops[stopName];
-    return `<button onclick="selectStop('${stopName}', ${stop.lat}, ${stop.lng})">${stopName}</button>`;
-  }).join("");
-  document.getElementById("stop-buttons").innerHTML = buttonsHtml;
-}
+    function renderStopButtons() {
+      // Determine the color based on the selected direction.
+      // For example, use purple for Northbound and green for Southbound.
+      const btnColor = getUserSelectedDirection() === "Northbound" ? "#6A0DAD" : "#008000";
 
-function handleDirectionChange() {
-  selectedStopName = null;
-  document.getElementById("arrival-time").innerHTML = "Select a stop to calculate ETA.";
-  drawRouteOverlay();
-  renderStopButtons();
-}
+      // Get the route stops for the selected direction
+      const route = getUserSelectedDirection() === "Northbound" ? northboundRoute : southboundRoute;
+
+      // Build the HTML for the stop buttons using inline styles for background color.
+      const buttonsHtml = route.map(stopName => {
+        const stop = allStops[stopName];
+        return `<button style="background-color: ${btnColor};" onclick="selectStop('${stopName}', ${stop.lat}, ${stop.lng})">${stopName}</button>`;
+      }).join("");
+
+      // Update the inner HTML of the stop-buttons container.
+      document.getElementById("stop-buttons").innerHTML = buttonsHtml;
+    }
+
+
+    function handleDirectionChange() {
+      selectedStopName = null; // Clear any selected stop
+      document.getElementById("arrival-time").innerHTML = "Select a stop to calculate ETA.";
+      drawRouteOverlay();       // Redraw the route with new colors if needed
+      renderStopButtons();      // Re-render the buttons with the new background color
+    }
+
     function updateTrolleyLocation() {
       fetch("https://fir-realtimedata-9fab9-default-rtdb.firebaseio.com/gps.json")
         .then(res => res.json())

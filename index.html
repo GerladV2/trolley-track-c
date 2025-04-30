@@ -94,15 +94,20 @@
     
     /* Arrival time display at bottom */
     #arrival-time {
-      height: 10%;
-      text-align: center;
-      font-size: 18px;
-      padding: 10px;
+      position: absolute;
+      bottom: 0;
+      left: 250px;
+      right: 0;
+      height: auto;
       background: #ffffff;
-      border-top: 1px solid #ccc;
-      color: #333;
-      box-sizing: border-box;
+      color: #000;
+      font-size: 20px;
+      text-align: center;
+      padding: 10px;
+      z-index: 999;
+      border-top: 2px solid #ccc;
     }
+
   </style>
 </head>
 <body>
@@ -127,11 +132,14 @@
 
   <script>
     let map;
+  
     let pathOverlay;
     let trolleyMarker;
     let trolleyLocation = { lat: 33.414630, lng: -111.916990 }; // 🚨 Tempe starting point
     let lastTrolleyLocation = null;
     let selectedStopName = null;
+    let pathCoords = []; // 🚨 Global variable
+
 
     const SPEED_MPH = 9.3;
     const ZONES = {
@@ -171,117 +179,7 @@
       "Rural Rd/Apache Blvd", "Dorsey Ln/Apache Blvd"
     ];
 
-    const allStops = {};
-        stopsInOrder.forEach(stop => {
-        allStops[stop.name] = { lat: stop.lat, lng: stop.lng };
-    });
-
-    function initialize() {
-      map = new google.maps.Map(document.getElementById("map"), {
-        center: trolleyLocation,
-        zoom: 14
-      });
-
-      // Place markers for all stops
-      for (const stopName in allStops) {
-        new google.maps.Marker({
-          position: allStops[stopName],
-          map,
-          title: stopName
-        });
-      }
-
-      trolleyMarker = new google.maps.Marker({
-        position: trolleyLocation,
-        map,
-        title: "Trolley",
-        icon: { url: "Trolley_Icon.png", scaledSize: new google.maps.Size(40,40) }
-      });
-
-      renderStopButtons();  // <-- This renders the stop buttons with the correct color
-      drawRouteOverlay();
-      updateTrolleyLocation();
-      setInterval(updateTrolleyLocation, 500);
-    }
-
-
-    function getDistanceInMiles(lat1, lng1, lat2, lng2) {
-      const R = 3958.8;
-      const toRad = deg => deg * (Math.PI / 180);
-      const dLat = toRad(lat2 - lat1);
-      const dLng = toRad(lng2 - lng1);
-      const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return R * c;
-    }
-
-    function getDistanceAlongPath(trolleyLoc, stopLoc, pathCoords) {
-        let minStartDist = Infinity;
-        let minEndDist = Infinity;
-        let startIdx = 0;
-        let endIdx = pathCoords.length - 1;
-
-        // Find the closest point on path to trolley
-        for (let i = 0; i < pathCoords.length; i++) {
-            const d = getDistanceInMiles(trolleyLoc.lat, trolleyLoc.lng, pathCoords[i].lat, pathCoords[i].lng);
-            if (d < minStartDist) {
-            minStartDist = d;
-            startIdx = i;
-            }
-        }
-
-        // Find the closest point on path to stop
-        for (let i = 0; i < pathCoords.length; i++) {
-            const d = getDistanceInMiles(stopLoc.lat, stopLoc.lng, pathCoords[i].lat, pathCoords[i].lng);
-            if (d < minEndDist) {
-            minEndDist = d;
-            endIdx = i;
-            }
-        }
-
-        // Make sure we're going forward along the path
-        if (endIdx < startIdx) return Infinity;
-
-        let total = 0;
-        for (let i = startIdx; i < endIdx; i++) {
-            total += getDistanceInMiles(
-            pathCoords[i].lat, pathCoords[i].lng,
-            pathCoords[i + 1].lat, pathCoords[i + 1].lng
-            );
-        }
-
-        return total; // in miles
-    }
-
-
-    function getETAtoStopFromPath(trolleyLoc, selectedStop, routeStops, stopCoords) {
-      let totalDistance = 0;
-      let startFound = false;
-
-      for (let i = 0; i < routeStops.length - 1; i++) {
-        const curr = stopCoords[routeStops[i]];
-        const next = stopCoords[routeStops[i + 1]];
-
-        if (!startFound) {
-          const distToMid = getDistanceInMiles(trolleyLoc.lat, trolleyLoc.lng, (curr.lat + next.lat)/2, (curr.lng + next.lng)/2);
-          if (distToMid < 0.25) {
-            startFound = true;
-            totalDistance += getDistanceInMiles(trolleyLoc.lat, trolleyLoc.lng, next.lat, next.lng);
-          }
-        } else {
-          totalDistance += getDistanceInMiles(curr.lat, curr.lng, next.lat, next.lng);
-        }
-
-        if (routeStops[i + 1] === selectedStop) break;
-      }
-
-      return totalDistance;
-    }
-
-    function drawRouteOverlay() {
-        const selectedDir = getUserSelectedDirection();
-
-        const northboundPathCoords = [
+    const northboundPathCoords = [
             {lat: 33.4146300, lng: -111.9169900},  // Dorsey Ln/Apache Blvd
             //{lat: 33.4147800, lng: -111.9252400},  // Rural Rd/Apache Blvd
             //{lat: 33.4147500, lng: -111.9293900},  // Paseo Del Saber/Apache Blvd
@@ -291,7 +189,7 @@
             //{lat: 33.4248548, lng: -111.9398734},  // Sixth St/Mill
             //{lat: 33.4279434, lng: -111.9399252},  // Third St/Mill
             //{lat: 33.4301000, lng: -111.9381700},  // Hayden Ferry
-            
+        
             {lat: 33.41473867350939, lng: -111.91691110472115},
             {lat: 33.41468270207691, lng: -111.93685433565464},
             {lat: 33.41471152728806, lng: -111.93731760460068},
@@ -480,19 +378,107 @@
             {lat: 33.4146300, lng: -111.9169900}  // Dorsey Ln/Apache Blvd
         ];
 
-        const pathCoords = selectedDir === "Northbound" ? northboundPathCoords : southboundPathCoords;
 
-        if (pathOverlay) pathOverlay.setMap(null);
+    const allStops = {};
+        stopsInOrder.forEach(stop => {
+        allStops[stop.name] = { lat: stop.lat, lng: stop.lng };
+    });
 
-        pathOverlay = new google.maps.Polyline({
-          path: pathCoords,
-          geodesic: true,
-          strokeColor: selectedDir === "Northbound" ? "#6A0DAD" : "#008000", // Purple for Northbound, Green for Southbound
-          strokeOpacity: 1.0,
-          strokeWeight: 4
-        });
-        pathOverlay.setMap(map);
+    function initialize() {
+  map = new google.maps.Map(document.getElementById("map"), {
+    center: trolleyLocation,
+    zoom: 14
+  });
+
+  for (const stopName in allStops) {
+    new google.maps.Marker({
+      position: allStops[stopName],
+      map,
+      title: stopName
+    });
+  }
+
+  trolleyMarker = new google.maps.Marker({
+    position: trolleyLocation,
+    map,
+    title: "Trolley",
+    icon: { url: "Trolley_Icon.png", scaledSize: new google.maps.Size(40,40) }
+  });
+
+  renderStopButtons();
+  drawRouteOverlay();
+  updateTrolleyLocation();
+  setInterval(updateTrolleyLocation, 2000);
+
+  // 🔧 FORCE TEST ETA
+  selectedStopName = "Ninth St/Mill";
+  updateArrivalEstimate();
+}
+
+
+
+    function getDistanceInMiles(lat1, lng1, lat2, lng2) {
+      const R = 3958.8;
+      const toRad = deg => deg * (Math.PI / 180);
+      const dLat = toRad(lat2 - lat1);
+      const dLng = toRad(lng2 - lng1);
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
     }
+
+    function getDistanceAlongPath(trolleyLoc, stopLoc, pathCoords) {
+      let minStartDist = Infinity;
+      let minEndDist = Infinity;
+      let startIdx = 0;
+      let endIdx = pathCoords.length - 1;
+
+      for (let i = 0; i < pathCoords.length; i++) {
+        const dStart = getDistanceInMiles(trolleyLoc.lat, trolleyLoc.lng, pathCoords[i].lat, pathCoords[i].lng);
+        if (dStart < minStartDist) {
+          minStartDist = dStart;
+          startIdx = i;
+        }
+
+        const dEnd = getDistanceInMiles(stopLoc.lat, stopLoc.lng, pathCoords[i].lat, pathCoords[i].lng);
+        if (dEnd < minEndDist) {
+          minEndDist = dEnd;
+          endIdx = i;
+        }
+      }
+
+      if (endIdx < startIdx) return Infinity;
+
+      let total = 0;
+      for (let i = startIdx; i < endIdx; i++) {
+        total += getDistanceInMiles(
+          pathCoords[i].lat, pathCoords[i].lng,
+          pathCoords[i + 1].lat, pathCoords[i + 1].lng
+        );
+      }
+
+      return total; // in miles
+    }
+
+    function drawRouteOverlay() {
+      const selectedDir = getUserSelectedDirection();
+      pathCoords = selectedDir === "Northbound" ? northboundPathCoords : southboundPathCoords;
+
+
+      if (pathOverlay) pathOverlay.setMap(null);
+
+      pathOverlay = new google.maps.Polyline({
+        path: pathCoords,
+        geodesic: true,
+        strokeColor: selectedDir === "Northbound" ? "#6A0DAD" : "#008000",
+        strokeOpacity: 1.0,
+        strokeWeight: 4
+      });
+
+      pathOverlay.setMap(map);
+    }
+
+
 
     function renderStopButtons() {
       // Determine the color based on the selected direction.
@@ -534,47 +520,70 @@
     }
 
     function updateArrivalEstimate() {
-      const etaEl = document.getElementById("arrival-time");
+  const etaEl = document.getElementById("arrival-time");
 
-      if (!selectedStopName) {
-        etaEl.innerHTML = `Select a stop to calculate ETA.<br><small>Route: Unknown</small>`;
-        drawRouteOverlay();
-        return;
-      }
+  if (!selectedStopName) {
+    etaEl.innerHTML = `Select a stop to calculate ETA.<br><small>Route: Unknown</small>`;
+    return;
+  }
 
-      const userDir = getUserSelectedDirection();
-      const autoDir = getAutoDirection();
-      const route = userDir === "Northbound" ? northboundRoute : southboundRoute;
-      const stopIndex = route.indexOf(selectedStopName);
+  const userDir = getUserSelectedDirection();
+  const autoDir = getAutoDirection();
+  const route = userDir === "Northbound" ? northboundRoute : southboundRoute;
+  const stopCoord = allStops[selectedStopName];
 
-      if (stopIndex === -1) {
-        etaEl.innerHTML = `Stop not on selected route.<br><small>Route: ${userDir}</small>`;
-        drawRouteOverlay();
-        return;
-      }
+  console.log("Selected stop:", selectedStopName);
+  console.log("Stop coordinates:", stopCoord);
+  console.log("Trolley location:", trolleyLocation);
+  console.log("Path coords length:", pathCoords.length);
 
-      const pathCoords = userDir === "Northbound" ? northboundPathCoords : southboundPathCoords;
-      const stopCoord = allStops[selectedStopName];
-      const dist = getDistanceAlongPath(trolleyLocation, stopCoord, pathCoords);
-      const etaMin = (dist / SPEED_MPH) * 60;
-      const zone = dist <= ZONES.ARRIVING ? "Arriving" : dist <= ZONES.NEARBY ? "Nearby" : "Approaching";
+  if (!pathCoords || pathCoords.length < 2) {
+    etaEl.innerHTML = `Route path not loaded yet.`;
+    console.warn("Path coords missing or too short.");
+    return;
+  }
 
-      const warning = autoDir !== userDir && autoDir !== "Unknown"
-        ? `<br><small style="color:red">⚠️ Trolley is moving ${autoDir}, but you're tracking ${userDir}</small>`
-        : "";
+  const distanceMiles = getDistanceAlongPath(trolleyLocation, stopCoord, pathCoords);
+  const distanceMeters = distanceMiles * 1609.34;
+  const speedMps = SPEED_MPH * 0.44704;
 
-      etaEl.innerHTML = `
-        ETA to <b>${selectedStopName}</b>: <b>${etaMin.toFixed(1)} min</b> (${zone})<br>
-        <small>Tracking: <b>${userDir}</b></small>${warning}
-      `;
+  console.log("Distance (miles):", distanceMiles);
+  console.log("Distance (meters):", distanceMeters);
+  console.log("Speed (mps):", speedMps);
 
-      drawRouteOverlay();
-    }
+  if (!isFinite(distanceMeters) || distanceMeters <= 0 || speedMps < 0.5) {
+    etaEl.innerHTML = `ETA unavailable or stop behind trolley.`;
+    return;
+  }
+
+  const etaSeconds = distanceMeters / speedMps;
+  const etaMin = Math.floor(etaSeconds / 60);
+  const etaSec = Math.round(etaSeconds % 60);
+
+  const zone =
+    distanceMeters <= ZONES.ARRIVING * 1609.34 ? "Arriving" :
+    distanceMeters <= ZONES.NEARBY * 1609.34 ? "Nearby" :
+    "Approaching";
+
+  const warning = autoDir !== userDir && autoDir !== "Unknown"
+    ? `<br><small style="color:red">⚠️ Trolley is moving ${autoDir}, but you're tracking ${userDir}</small>`
+    : "";
+
+  etaEl.innerHTML = `
+    ETA to <b>${selectedStopName}</b>: <b>${etaMin} min ${etaSec} sec</b> (${zone})<br>
+    <small>Tracking: <b>${userDir}</b></small>${warning}
+  `;
+}
+
+
+
 
     function selectStop(name, lat, lng) {
       selectedStopName = name;
       zoomToStop(lat, lng);
+      updateArrivalEstimate(); // ← Add this
     }
+
 
     function zoomToStop(lat, lng) {
       map.setCenter({ lat, lng });

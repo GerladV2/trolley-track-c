@@ -411,7 +411,7 @@
   setInterval(updateTrolleyLocation, 2000);
 
   // 🔧 FORCE TEST ETA
-  selectedStopName = "Ninth St/Mill";
+  document.getElementById("arrival-time").innerHTML = "Select a stop to calculate ETA.";
   updateArrivalEstimate();
 }
 
@@ -528,7 +528,7 @@
   }
 
   const userDir = getUserSelectedDirection();
-  const autoDir = getAutoDirection();
+  const autoDir = getAutoDirectionFromStops();
   const route = userDir === "Northbound" ? northboundRoute : southboundRoute;
   const stopCoord = allStops[selectedStopName];
 
@@ -600,10 +600,37 @@
       return el ? el.value : "Northbound";
     }
 
-    function getAutoDirection() {
-      if (!lastTrolleyLocation) return "Unknown";
-      return trolleyLocation.lng - lastTrolleyLocation.lng < 0 ? "Northbound" : "Southbound";
+    function getAutoDirectionFromStops() {
+      if (!lastTrolleyLocation || !trolleyLocation) return "Unknown";
+
+      const closestStopIndex = findClosestStopIndex(trolleyLocation);
+      const lastClosestStopIndex = findClosestStopIndex(lastTrolleyLocation);
+
+      if (closestStopIndex === -1 || lastClosestStopIndex === -1) return "Unknown";
+
+      return closestStopIndex > lastClosestStopIndex ? "Northbound" :
+            closestStopIndex < lastClosestStopIndex ? "Southbound" : "Unknown";
     }
+
+    function findClosestStopIndex(pos) {
+      const route = getUserSelectedDirection() === "Northbound" ? northboundRoute : southboundRoute;
+
+      let closestIndex = -1;
+      let minDist = Infinity;
+
+      for (let i = 0; i < route.length; i++) {
+        const stop = allStops[route[i]];
+        const dist = getDistanceInMiles(pos.lat, pos.lng, stop.lat, stop.lng);
+        if (dist < minDist) {
+          minDist = dist;
+          closestIndex = i;
+        }
+      }
+
+      return closestIndex;
+    }
+
+
 
     function loadGoogleMapsScript() {
       const script = document.createElement("script");
